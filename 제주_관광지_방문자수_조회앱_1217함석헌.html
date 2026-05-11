@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>제주 관광지 방문자수 조회</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "맑은 고딕", sans-serif; background: #f1f5f9; min-height: 100vh; display: flex; justify-content: center; align-items: flex-start; padding: 40px 16px; }
+  .app { width: 100%; max-width: 620px; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.10); }
+  .header { background: #1d4ed8; padding: 24px 28px 20px; }
+  .header h1 { color: #fff; font-size: 20px; font-weight: 600; }
+  .header p { color: #bfdbfe; font-size: 13px; margin-top: 5px; }
+  .body { background: #fff; padding: 24px 28px; }
+  .search-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .search-row input { flex: 1; font-size: 15px; font-family: "맑은 고딕", sans-serif; padding: 0 14px; height: 44px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; color: #1e293b; }
+  .search-row input:focus { border-color: #1d4ed8; box-shadow: 0 0 0 3px #bfdbfe55; }
+  .search-row button { height: 44px; padding: 0 22px; background: #1d4ed8; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; font-family: "맑은 고딕", sans-serif; cursor: pointer; }
+  .search-row button:hover { background: #1e40af; }
+  .year-nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+  .year-btn { font-size: 12px; font-family: "맑은 고딕", sans-serif; padding: 5px 12px; border: 1px solid #cbd5e1; border-radius: 999px; cursor: pointer; background: #fff; color: #64748b; transition: all .15s; }
+  .year-btn:hover { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
+  .year-btn.active { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+  .msg { font-size: 14px; color: #64748b; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center; }
+  .year-title { font-size: 17px; font-weight: 600; color: #1e293b; margin-bottom: 16px; }
+  .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px; }
+  .card { background: #f8fafc; border-radius: 10px; padding: 16px 18px; border: 1px solid #e2e8f0; }
+  .card-name { font-size: 12px; color: #64748b; margin-bottom: 6px; font-weight: 600; letter-spacing: 0.03em; }
+  .card-total { font-size: 22px; font-weight: 700; color: #1e293b; margin-bottom: 10px; }
+  .card-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; color: #64748b; }
+  .card-row span:last-child { color: #334155; font-weight: 600; }
+  .bar-wrap { margin-top: 10px; height: 5px; background: #e2e8f0; border-radius: 3px; }
+  .bar-inner { height: 5px; border-radius: 3px; background: #1d4ed8; transition: width .4s ease; }
+  .total-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .total-label { font-size: 14px; color: #1d4ed8; font-weight: 600; }
+  .total-num { font-size: 24px; font-weight: 700; color: #1e3a8a; }
+  @media (max-width: 480px) {
+    .cards { grid-template-columns: 1fr; }
+    .header h1 { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>🌴 제주 관광지 방문자수 조회</h1>
+    <p>한라산 · 성산일출봉 · 만장굴 · 거문오름 | 2010 ~ 2023</p>
+    <p style="margin-top:8px; color:#93c5fd; font-size:12px; font-weight:600; letter-spacing:0.05em;">✍️ 1217 함석헌</p>
+  </div>
+  <div class="body">
+    <div class="search-row">
+      <input type="number" id="year-input" placeholder="연도 입력  예: 2019" min="2010" max="2023" />
+      <button onclick="search()">조회</button>
+    </div>
+    <div class="year-nav" id="year-nav"></div>
+    <div id="result"><p class="msg">연도를 입력하거나 위의 버튼을 눌러 조회하세요.</p></div>
+  </div>
+</div>
+
+<script>
+const DATA = {
+  2010:{한라산:[1100970,40662],성산일출봉:[1463961,506059],만장굴:[583033,103390],거문오름:[56460,847]},
+  2011:{한라산:[931620,49763],성산일출봉:[1696917,738103],만장굴:[667348,118251],거문오름:[70034,970]},
+  2012:{한라산:[1087203,98575],성산일출봉:[1814245,1113135],만장굴:[612288,115674],거문오름:[79492,1115]},
+  2013:{한라산:[1010271,138849],성산일출봉:[1804413,1180182],만장굴:[665682,109159],거문오름:[106587,654]},
+  2014:{한라산:[1056984,194578],성산일출봉:[1714153,1690798],만장굴:[576338,98075],거문오름:[100430,445]},
+  2015:{한라산:[1037008,208723],성산일출봉:[1775409,1224893],만장굴:[690901,65576],거문오름:[109046,196]},
+  2016:{한라산:[839510,206388],성산일출봉:[1767374,1402539],만장굴:[704648,85160],거문오름:[99890,373]},
+  2017:{한라산:[934979,66458],성산일출봉:[1758733,400145],만장굴:[777643,55226],거문오름:[103086,579]},
+  2018:{한라산:[835575,73069],성산일출봉:[1587410,318620],만장굴:[698590,78100],거문오름:[96754,586]},
+  2019:{한라산:[757856,90423],성산일출봉:[1299352,408561],만장굴:[570772,76761],거문오름:[102668,826]},
+  2020:{한라산:[637486,25082],성산일출봉:[1029208,65189],만장굴:[593724,20640],거문오름:[62178,136]},
+  2021:{한라산:[649836,2870],성산일출봉:[492718,5442],만장굴:[335680,7086],거문오름:[48711,74]},
+  2022:{한라산:[831937,18807],성산일출봉:[777585,37929],만장굴:[518725,31699],거문오름:[85066,310]},
+  2023:{한라산:[866161,57519],성산일출봉:[700136,156025],만장굴:[387492,89852],거문오름:[72753,650]}
+};
+const YEARS = Object.keys(DATA).map(Number);
+const SPOTS = ["한라산","성산일출봉","만장굴","거문오름"];
+const fmt = n => n.toLocaleString('ko-KR');
+
+const nav = document.getElementById('year-nav');
+YEARS.forEach(y => {
+  const b = document.createElement('button');
+  b.className = 'year-btn';
+  b.textContent = y;
+  b.id = 'btn-' + y;
+  b.onclick = () => { document.getElementById('year-input').value = y; search(); };
+  nav.appendChild(b);
+});
+
+document.getElementById('year-input').addEventListener('keydown', e => { if(e.key==='Enter') search(); });
+
+function search() {
+  const val = parseInt(document.getElementById('year-input').value);
+  const el = document.getElementById('result');
+
+  document.querySelectorAll('.year-btn').forEach(b => b.classList.remove('active'));
+
+  if(!val || isNaN(val)) {
+    el.innerHTML = '<p class="msg">연도를 숫자로 입력해주세요.</p>';
+    return;
+  }
+  const row = DATA[val];
+  if(!row) {
+    el.innerHTML = `<p class="msg">${val}년 데이터가 없습니다.<br>2010 ~ 2023 사이의 연도를 입력하세요.</p>`;
+    return;
+  }
+
+  const btn = document.getElementById('btn-' + val);
+  if(btn) btn.classList.add('active');
+
+  let totalAll = 0;
+  const spotData = SPOTS.map(s => {
+    const [k,f] = row[s];
+    const t = k + f;
+    totalAll += t;
+    return {s, k, f, t};
+  });
+  const maxT = Math.max(...spotData.map(d => d.t));
+
+  let html = `<p class="year-title">${val}년 제주 관광지 방문자수</p><div class="cards">`;
+  spotData.forEach(({s, k, f, t}) => {
+    const pct = Math.round(t / maxT * 100);
+    const foreignPct = Math.round(f / t * 100);
+    html += `
+    <div class="card">
+      <div class="card-name">${s}</div>
+      <div class="card-total">${fmt(t)}명</div>
+      <div class="card-row"><span>내국인</span><span>${fmt(k)}명</span></div>
+      <div class="card-row"><span>외국인</span><span>${fmt(f)}명 (${foreignPct}%)</span></div>
+      <div class="bar-wrap"><div class="bar-inner" style="width:${pct}%"></div></div>
+    </div>`;
+  });
+  html += `</div>
+  <div class="total-box">
+    <span class="total-label">전체 방문자 합계</span>
+    <span class="total-num">${fmt(totalAll)}명</span>
+  </div>`;
+  el.innerHTML = html;
+}
+</script>
+</body>
+</html>
